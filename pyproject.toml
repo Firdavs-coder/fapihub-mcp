@@ -1,0 +1,36 @@
+[project]
+name = "fapihub-mcp"
+version = "0.1.0"
+description = "MCP server for FAPIHUB: background removal, masks, blur, color, gradient and shadow tools for AI agents"
+readme = "README.md"
+authors = [
+    { name = "Firdavs-coder", email = "support@fapihub.com" }
+]
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["mcp", "background-removal", "image", "ai", "fapihub"]
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=2.3,<3",
+]
+
+[project.urls]
+Homepage = "https://fapihub.com"
+Repository = "https://github.com/Firdavs-coder/fapihub-mcp"
+
+[project.scripts]
+fapihub-mcp = "fapihub_mcp:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
