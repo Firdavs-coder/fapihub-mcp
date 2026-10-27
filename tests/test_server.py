@@ -51,6 +51,7 @@ async def test_lists_all_tools():
         "color_background",
         "gradient_background",
         "add_shadow",
+        "get_usage",
     }
 
 
@@ -186,3 +187,69 @@ def test_missing_api_key(monkeypatch):
     monkeypatch.delenv("FAPIHUB_API_KEY", raising=False)
     with pytest.raises(Exception, match="FAPIHUB_API_KEY is not set"):
         Settings.from_env()
+
+
+USAGE = {
+    "plan": {"id": "pro", "name": "Pro", "billing": "monthly", "price": 15.0},
+    "status": "active",
+    "can_make_requests": True,
+    "limits": {"requests": 7500, "requests_per_minute": 60},
+    "usage": {"used": 1240, "remaining": 6260, "percent_used": 16.5, "successful": 1225, "failed": 15},
+    "billing_period": {"start": "2026-10-01", "end": "2026-11-01"},
+    "cancel_at_period_end": False,
+    "end_date": None,
+}
+
+
+def _usage(data):
+    return lambda req: httpx.Response(200, json={"success": True, "data": data})
+
+
+@pytest.mark.parametrize("api", [_usage(USAGE)], indirect=True)
+async def test_get_usage(api):
+    result = await call("get_usage", {})
+
+    assert not result.is_error, text(result)
+    assert api[0].method == "GET"
+    assert str(api[0].url) == "https://fapihub.com/v2/account/usage/"
+    assert api[0].headers["ApiKey"] == "bg_live_sk_test"
+    output = text(result)
+    assert "Plan: Pro (monthly, $15.00)" in output
+    assert "1,240 of 7,500 used (16.5%), 6,260 remaining" in output
+    assert "Rate limit: 60 requests per minute" in output
+    assert "quota resets on 2026-11-01" in output
+    assert "blocked" not in output
+
+
+OVER_LIMIT = {**USAGE, "status": "over_limit", "can_make_requests": False, "cancel_at_period_end": True,
+              "usage": {**USAGE["usage"], "used": 7500, "remaining": 0, "percent_used": 100.0}}
+LIFETIME = {**USAGE, "plan": {**USAGE["plan"], "billing": "lifetime"}, "billing_period": None}
+
+
+@pytest.mark.parametrize("api", [_usage(OVER_LIMIT)], indirect=True)
+async def test_get_usage_over_limit(api):
+    output = text(await call("get_usage", {}))
+    assert "Image requests are currently blocked" in output
+    assert "The monthly quota resets on 2026-11-01." in output
+    assert "cancel at the end of this period" in output
+
+
+@pytest.mark.parametrize("api", [_usage(LIFETIME)], indirect=True)
+async def test_get_usage_lifetime(api):
+    output = text(await call("get_usage", {}))
+    assert "never resets" in output
+    assert "Billing period" not in output
+
+
+@pytest.mark.parametrize("api", [lambda req: httpx.Response(404, text="Not Found")], indirect=True)
+async def test_get_usage_on_server_without_endpoint(api):
+    result = await call("get_usage", {})
+    assert result.is_error
+    assert "doesn't support usage lookups" in text(result)
+
+
+@pytest.mark.parametrize("api", [_error(401, "The provided API key is invalid or inactive")], indirect=True)
+async def test_get_usage_invalid_key(api):
+    result = await call("get_usage", {})
+    assert result.is_error
+    assert "Check FAPIHUB_API_KEY" in text(result)

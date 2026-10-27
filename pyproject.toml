@@ -1,6 +1,6 @@
 [project]
 name = "fapihub-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server for FAPIHUB: background removal, masks, blur, color, gradient and shadow tools for AI agents"
 readme = "README.md"
 authors = [

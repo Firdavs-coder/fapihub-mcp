@@ -84,29 +84,44 @@ class FapihubClient:
 
     async def process(self, endpoint: str, image_path: Path, fields: dict[str, str]) -> ProcessedImage:
         """POST an image to /v2/rembg/<endpoint> and return the resulting image."""
-        url = f"{self.settings.base_url}/v2/rembg/{endpoint}"
+        files = {
+            "image": (image_path.name, image_path.read_bytes(), CONTENT_TYPES[image_path.suffix.lower()]),
+        }
+        response = await self._request("POST", f"/v2/rembg/{endpoint}", files=files, data=fields)
+        _raise_for_status(response)
+        return ProcessedImage(
+            content=response.content,
+            content_type=response.headers.get("Content-Type", "image/png").split(";")[0].strip(),
+        )
+
+    async def get_usage(self) -> dict:
+        """Plan, limits and current usage. Free: not counted against quota."""
+        response = await self._request("GET", "/v2/account/usage/")
+        if response.status_code == 404:
+            # Older self-hosted deployments predate this endpoint
+            raise FapihubError(
+                f"{self.settings.base_url} doesn't support usage lookups. Check your usage in the FAPIHUB dashboard."
+            )
+        _raise_for_status(response)
+        return response.json()["data"]
+
+    async def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
         headers = {
             "ApiKey": self.settings.api_key,
             "User-Agent": f"fapihub-mcp/{__version__}",
         }
-        files = {
-            "image": (image_path.name, image_path.read_bytes(), CONTENT_TYPES[image_path.suffix.lower()]),
-        }
-
         async with httpx.AsyncClient(timeout=self.settings.timeout, transport=self._transport) as http:
             try:
-                response = await http.post(url, headers=headers, files=files, data=fields)
+                response = await http.request(method, f"{self.settings.base_url}{path}", headers=headers, **kwargs)
             except httpx.TimeoutException:
                 raise FapihubError("The FAPIHUB API timed out. Try again in a moment.")
             except httpx.HTTPError as e:
                 raise FapihubError(f"Could not reach the FAPIHUB API at {self.settings.base_url}: {e}")
+        return response
 
-        if response.status_code == 200:
-            return ProcessedImage(
-                content=response.content,
-                content_type=response.headers.get("Content-Type", "image/png").split(";")[0].strip(),
-            )
 
+def _raise_for_status(response: httpx.Response) -> None:
+    if response.status_code != 200:
         raise FapihubError(_describe_error(response))
 
 

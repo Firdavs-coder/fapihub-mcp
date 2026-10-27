@@ -40,12 +40,22 @@ One photo, every tool:
 | `color_background` | Replaces the background with a solid color | `color` |
 | `gradient_background` | Replaces the background with a vertical gradient | `top_color`, `bottom_color` |
 | `add_shadow` | Cutout with a drop shadow | `shadow_color`, `offset_x`, `offset_y`, `blur_radius` |
+| `get_usage` | Your plan, its limits, and requests used and remaining | |
 
-Every tool takes `image_path` (JPG, PNG, WEBP, BMP or GIF, 1 KB to 10 MB) and an optional `output_path`. Without `output_path`, the result is saved as `<name>_<operation>.<ext>` beside the input and never overwrites an existing file.
+Every image tool takes `image_path` (JPG, PNG, WEBP, BMP or GIF, 1 KB to 10 MB) and an optional `output_path`. Without `output_path`, the result is saved as `<name>_<operation>.<ext>` beside the input and never overwrites an existing file.
 
 Colors can be hex (`#FF8C00`, `#FF8C0080`) or RGB(A) (`255, 140, 0` or `255, 140, 0, 128`).
 
-Each tool call uses one request from your FAPIHUB plan. Invalid inputs (missing file, wrong format, bad size) are caught locally before anything is sent, so they don't use quota.
+Each image tool call uses one request from your FAPIHUB plan. Invalid inputs (missing file, wrong format, bad size) are caught locally before anything is sent, so they don't use quota. `get_usage` is free, so agents can check how much quota is left before a large batch:
+
+```text
+Plan: Pro (monthly, $15.00)
+Status: active
+Requests: 1,240 of 7,500 used (16.5%), 6,260 remaining
+Successful: 1,225, failed (4xx, counted): 15
+Rate limit: 60 requests per minute
+Billing period: 2026-10-01 to 2026-11-01 (quota resets on 2026-11-01)
+```
 
 ## Setup
 

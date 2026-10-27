@@ -20,14 +20,16 @@ mcp = MCPServer(
     version=__version__,
     website_url="https://fapihub.com",
     instructions=(
-        "Image tools backed by the FAPIHUB API. Each tool reads a local image file, "
+        "Image tools backed by the FAPIHUB API. Each image tool reads a local image file, "
         "writes the result next to it (or to output_path) and returns the saved path. "
-        "Every call uses one request from the user's FAPIHUB quota."
+        "Every image tool call uses one request from the user's FAPIHUB quota. "
+        "get_usage is free; call it before large batches to check enough quota remains."
     ),
 )
 
 # Tools write a new file and call a paid external API.
 WRITE_TOOL = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+READ_TOOL = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True)
 
 ImagePath = Annotated[str, Field(description="Path to a local JPG, PNG, WEBP, BMP or GIF image (1 KB to 10 MB).")]
 OutputPath = Annotated[
@@ -159,3 +161,39 @@ async def add_shadow(
         "blur_radius": str(blur_radius),
     }
     return await _run("shadow/", "shadow", image_path, output_path, fields)
+
+
+@mcp.tool(annotations=READ_TOOL)
+async def get_usage() -> str:
+    """Show the FAPIHUB plan, its limits, and how many requests are used and remaining.
+
+    Free: does not use quota. Check it before processing many images.
+    """
+    try:
+        data = await get_client().get_usage()
+    except FapihubError as e:
+        raise ToolError(str(e)) from e
+    return format_usage(data)
+
+
+def format_usage(data: dict) -> str:
+    plan, limits, usage, period = data["plan"], data["limits"], data["usage"], data["billing_period"]
+    lifetime = plan["billing"] == "lifetime"
+
+    lines = [
+        f"Plan: {plan['name']} ({plan['billing']}, ${plan['price']:,.2f})",
+        f"Status: {data['status']}",
+        f"Requests: {usage['used']:,} of {limits['requests']:,} used ({usage['percent_used']}%), "
+        f"{usage['remaining']:,} remaining" + (" (lifetime total, never resets)" if lifetime else ""),
+        f"Successful: {usage['successful']:,}, failed (4xx, counted): {usage['failed']:,}",
+        f"Rate limit: {limits['requests_per_minute']:,} requests per minute",
+    ]
+    if period:
+        lines.append(f"Billing period: {period['start']} to {period['end']} (quota resets on {period['end']})")
+    if data["cancel_at_period_end"]:
+        lines.append("The subscription is set to cancel at the end of this period.")
+    if not data["can_make_requests"]:
+        lines.append("Image requests are currently blocked. Upgrade or renew at https://fapihub.com/billing/")
+        if data["status"] == "over_limit" and period:
+            lines.append(f"The monthly quota resets on {period['end']}.")
+    return "\n".join(lines)
