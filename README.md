@@ -12,6 +12,24 @@ Ask your agent things like:
 
 The server reads images from your disk, sends them to the FAPIHUB API and saves the results next to the originals.
 
+## Preview
+
+One photo, every tool:
+
+<table>
+  <tr>
+    <td align="center" rowspan="2"><img src="assets/original.webp" width="200" alt="Original photo"><br><b>Original</b></td>
+    <td align="center"><img src="assets/remove-bg.webp" width="150" alt="Background removed"><br><code>remove_background</code></td>
+    <td align="center"><img src="assets/mask.webp" width="150" alt="Subject mask"><br><code>create_mask</code></td>
+    <td align="center"><img src="assets/blur.webp" width="150" alt="Blurred background"><br><code>blur_background</code></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/color.webp" width="150" alt="Solid color background"><br><code>color_background</code></td>
+    <td align="center"><img src="assets/gradient.webp" width="150" alt="Gradient background"><br><code>gradient_background</code></td>
+    <td align="center"><img src="assets/shadow.webp" width="150" alt="Drop shadow"><br><code>add_shadow</code></td>
+  </tr>
+</table>
+
 ## Tools
 
 | Tool | What it does | Options |
